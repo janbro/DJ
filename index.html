@@ -21,20 +21,61 @@
 	height:100%;
 }</style>
   <script>
+
+var nowPlaying=getCookie('skipDisabled');
+function deleteCookie(name)
+  {
+    var today = new Date();
+     var expired = new Date(today.getTime() - 24 * 3600 * 1000);
+    document.cookie=name + "=null; path=/; expires=" + expired.toGMTString();
+  }
+
+  function setCookie(name, value)
+  {
+    var today = new Date();
+    var expiry = new Date(today.getTime() + 3 * 60 * 1000); // plus 30 days
+    document.cookie=name + "=" + escape(value) + "; path=/; expires=" + expiry.toGMTString();
+  }
+  function getCookie(name)
+  {
+    var re = new RegExp(name + "=([^;]+)");
+    var value = re.exec(document.cookie);
+    return (value != null) ? unescape(value[1]) : null;
+  }
+  function skip(button){
+    if(getCookie("skipDisabled")==null){
+      window.alert("You voted to skip!");
+      var oldValue = button.value;
+
+      button.value = 'skip'; //set background to grey
+
+      document.getElementById('skip-button').style.backgroundColor = '#e7e7e7';
+      document.getElementById('skip-button').setAttribute('disabled',true);
+      setCookie('skipDisabled',nowPlaying);
+
+      $.ajax({
+              type: "GET",
+              url: "skip.php"
+      });
+    }
+  }
   var previousText="";
   function getNextSongs() {
   $.ajax({
-      url: 'songs-queued.txt',
+      url: 'songs-queued.txt?random='+Math.random(),
       dataType: 'text',
       success: function(text) {
-        setTimeout(getNextSongs, 500);
-        if(text!=previousText){
+        setTimeout(getNextSongs, 2000);
+        if(text!=previousText||text==""){
             $('#nextSongs').empty();
+            $('#skipContainer').empty();
             $('#nowPlaying').empty();
             var songs = text.split('\n');
             $('#nowPlaying').append("<thead><tr><th>▶ Now Playing</th></tr></thead><tbody>");
             if(text!=""){
+              nowPlaying=songs[0].split("~")[1];
               $('#nowPlaying').append("<tr><td>"+songs[0].split("~")[2]+"</td></tr></tbody>");
+              $('#skipContainer').append("<button id='skip-button' class='button' style='float:right;background-color:#e7e7e7;' disabled='true' onclick='skip(this)'>skip</button>");
             }songs.shift();songs.pop(); //remove first and last 'songs'
             var i=1;
             $('#nextSongs').append("<thead><tr><th>Queued</th></tr></thead><tbody>");
@@ -45,8 +86,21 @@
             $('#nextSongs').append("</tbody>");
             previousText=text;
           }
+          if((getCookie("skipDisabled")==null&&text!="")||(getCookie("skipDisabled")!=null&&getCookie("skipDisabled")!==nowPlaying)){
+            document.getElementById('skip-button').style.backgroundColor = 'white';
+            document.getElementById('skip-button').removeAttribute('disabled');
+            deleteCookie('skipDisabled');
+          }
       }
   })
+  document.getElementById('query').onkeyup = function(e){
+  e = e || event;
+  if (e.keyCode === 13) {
+    // start your submit function
+    search();
+  }
+  return true;
+ }
   }
   </script>
   <meta charset="utf-8" />
@@ -55,13 +109,13 @@
   <body onload='getNextSongs();'>
     <div class="container">
       <table class='u-full-width' id='nowPlaying'></table>
+      <div id='skipContainer'></div>
       <table class='u-full-width' id='nextSongs'></table>
       <div id="buttons" class="row">
         <div class="two columns">
           <select id="search-site" class="u-full-width">
             <option value="Soundcloud">SoundCloud</option>
             <option value="YouTube">YouTube</option>
-            <option value="Spotify">Spotify</option>
           <select>
         </div>
         <div class="eight columns">
@@ -77,9 +131,8 @@
       </div>
       <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
       <script src="https://connect.soundcloud.com/sdk/sdk-3.0.0.js"></script>
-      <script src="js/auth.js"></script>
       <script src="js/search.js"></script>
-      <script src="https://apis.google.com/js/client.js?onload=googleApiClientReady"></script>
+      <script src="https://apis.google.com/js/client.js"></script>
       <script></script>
     </div>
   </body>
